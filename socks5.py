@@ -3,7 +3,7 @@ import logging
 import socket
 import struct
 
-
+loop = asyncio.get_event_loop()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('socks5')
 
@@ -63,7 +63,7 @@ async def handle_client(client_reader, client_writer):
 
         # Do connection and transfer data
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((dest_addr, dest_port))
+            loop.sock_connect(s, (dest_addr, dest_port))
             reader, writer = await asyncio.open_connection(sock=s)
 
             client_read = asyncio.ensure_future(client_reader.read(1024))
@@ -95,7 +95,6 @@ async def handle_client(client_reader, client_writer):
 
 if __name__ == '__main__':
     logger.info('STARTING_SERVER')
-    loop = asyncio.get_event_loop()
     f = asyncio.start_server(accept_client, host=None, port=1080)
     loop.run_until_complete(f)
     loop.run_forever()
