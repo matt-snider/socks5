@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import socket
+import struct
 
 
 logging.basicConfig(level=logging.INFO)
@@ -40,18 +42,51 @@ async def handle_client(client_reader, client_writer):
         # Receive request: version, cmd, rsv (0), atyp, dst addr, dst port
         version, cmd, _, atyp = await client_reader.readexactly(4)
         logger.info('READ3 RECEIVED: version={}, cmd={}, atyp={}'.format(version, cmd, atyp))
-        if cmd != b'\x01':
+        if cmd != 1:
             # We only handle connect
             return
-        if atyp in (b'\x01', b'\x04'):
+        if atyp in (1, 4):
             # ip4 or ip6
             read_len = 4 * int(atyp)
-        elif atyp == b'\x03':
+        elif atyp == 3:
             read_len = int(await client_reader.readexactly(1))
-        dest_addr, dest_port = await client_reader.readexactly(read_len + 2)
+        else:
+            # bad atyp
+            return 
+        dest_addr = '.'.join(str(int(x)) for x in await client_reader.readexactly(read_len))
+        dest_port, = struct.unpack(b'!H', (await client_reader.readexactly(2)))
         logger.info('READ4 RECEIVED: dest_addr={}, dest_port={}'.format(dest_addr, dest_port))
 
+        # Send client response: version, rep, rsv (0), atyp, bnd addr, bnd port
+        client_writer.write(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+        await client_writer.drain()
+
         # Do connection and transfer data
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((dest_addr, dest_port))
+            reader, writer = await asyncio.open_connection(sock=s)
+
+            client_read = asyncio.ensure_future(client_reader.read(1024))
+            remote_read = asyncio.ensure_future(reader.read(1024))
+            while True:
+                done, pending = await asyncio.wait([client_read, remote_read], 
+                                                   return_when=asyncio.FIRST_COMPLETED)
+                if client_read in done:
+                    data = client_read.result()
+                    if not data:
+                        return
+
+                    writer.write(data)
+                    await writer.drain()
+                    client_read = asyncio.ensure_future(client_reader.read(1024))
+                if remote_read in done:
+                    data = remote_read.result()
+                    if not data:
+                        return
+
+                    client_writer.write(remote_read.result())
+                    await client_writer.drain()
+                    remote_read = asyncio.ensure_future(reader.read(1024))
     except Exception as e:
         logger.exception('Exception!')
     finally:
