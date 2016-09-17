@@ -90,6 +90,7 @@ class Socks5Server:
             if client_read in done:
                 data = client_read.result()
                 if not data:
+                    remote_read.cancel()
                     return
 
                 remote_writer.write(data)
@@ -99,6 +100,7 @@ class Socks5Server:
             if remote_read in done:
                 data = remote_read.result()
                 if not data:
+                    client_read.cancel()
                     return
 
                 client_writer.write(data)
