@@ -3,6 +3,7 @@ import socket
 import struct
 
 from .log import logger
+from .protocol import Socks5Protocol
 
 loop = asyncio.get_event_loop()
 
@@ -35,20 +36,11 @@ class Socks5Server:
         writer.close()
 
     async def handle_client(self, reader, writer):
+        protocol = Socks5Protocol(reader, writer)
         try:
-            # Read version, nmethods, methods
-            version, nmethods = await reader.readexactly(2)
-            logger.debug('RECEIVE_READ', version=version, nmethods=nmethods)
-            methods = await reader.readexactly(nmethods)
-            logger.debug('RECEIVE_READ', version=version, nmethods=nmethods, methods=methods)
-
-            # Prevent blocking
-            #if not data:
-            #    return
-
-            # Tell client version 5, no auth
-            writer.write(b'\x05\x00')
-            await writer.drain()
+            # Do auth negotiation
+            auth_method = await protocol.negotiate_auth()
+            logger.info('AUTH_NEGOTIATED', method=auth_method)
 
             # Receive request: version, cmd, rsv (0), atyp, dst addr, dst port
             version, cmd, _, atyp = await reader.readexactly(4)
