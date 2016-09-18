@@ -3,6 +3,8 @@ import struct
 from collections import namedtuple
 from enum import Enum
 
+from . import exceptions
+
 
 class Socks5Protocol:
 
@@ -17,7 +19,7 @@ class Socks5Protocol:
     async def negotiate_auth(self):
         version, nmethods = await self.reader.readexactly(2)
         if version != 5:
-            raise BadSocksVersion(version)
+            raise exceptions.BadSocksVersion(version)
         methods = await self.reader.readexactly(nmethods)
         if AuthMethod.none in methods:
             self.writer.write(b'\x05' + AuthMethod.none)
@@ -25,7 +27,6 @@ class Socks5Protocol:
         else:
             self.writer.write(b'\x05\xff')
             await self.writer.drain()
-            raise NoSupportedAuthMethods(methods)
         return AuthMethod.none
 
     async def read_request(self):
@@ -36,7 +37,7 @@ class Socks5Protocol:
         elif atyp in AddressType.ipv4 + AddressType.ipv6:
             read_len = 4 * struct.unpack('B', atyp)[0]
         else:
-            raise ProtocolException('Bad address type: {}'.format(atyp))
+            raise exceptions.AddressTypeNotSupported(atyp)
         dest_addr = '.'.join(str(int(x)) for x in await self.reader.readexactly(read_len))
         dest_port, = struct.unpack(b'!H', (await self.reader.readexactly(2)))
         self.request_received = True
@@ -52,26 +53,6 @@ class Socks5Protocol:
 
     async def write_success(self):
         await self._write_reply(0)
-
-
-class ProtocolException(Exception):
-    error_code = b'\x01'
-
-
-class BadSocksVersion(ProtocolException):
-    pass
-
-
-class NoSupportedAuthMethods(ProtocolException):
-    pass
-
-
-class CommandNotSupported(ProtocolException):
-    error_code = b'\x07'
-
-
-class AddressTypeNotSupported(ProtocolException):
-    error_code = b'\x08'
 
 
 class AuthMethod(bytes, Enum):
@@ -95,7 +76,4 @@ class AddressType(bytes, Enum):
 
 Request = namedtuple('Request', ['version', 'command', 'address_type', 
                                  'dest_address', 'dest_port'])
-
-Reply = namedtuple('Reply', ['version', 'reply', 'address_type', 
-                             'bind_address', 'bind_port'])
 

@@ -1,8 +1,9 @@
 import asyncio
 import socket
 
+from . import exceptions
 from .log import logger
-from .protocol import Command, CommandNotSupported, Socks5Protocol
+from .protocol import Command, Socks5Protocol
 
 loop = asyncio.get_event_loop()
 
@@ -56,9 +57,11 @@ class Socks5Server:
             remote_reader, remote_writer = await asyncio.open_connection(
                         host=request.dest_address, port=request.dest_port)
             await self.splice(reader, writer, remote_reader, remote_writer)
-        except ProtocolException as e:
+        except exceptions.ProtocolException as e:
             if protocol.request_received:
                 await protocol.write_error(e)
+        except exceptions.BadSocksVersion as e:
+            logger.warning('UNSUPPORTED_VERSION', version=e.args)
         except Exception as e:
             logger.exception('Exception!')
         finally:
