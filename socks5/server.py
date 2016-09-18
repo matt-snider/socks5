@@ -1,9 +1,8 @@
 import asyncio
 import socket
-import struct
 
 from .log import logger
-from .protocol import Socks5Protocol
+from .protocol import Command, CommandNotSupported, Socks5Protocol
 
 loop = asyncio.get_event_loop()
 
@@ -40,32 +39,23 @@ class Socks5Server:
         try:
             # Do auth negotiation
             auth_method = await protocol.negotiate_auth()
-            logger.info('AUTH_NEGOTIATED', method=auth_method)
+            logger.info('AUTH_NEGOTIATED', method=repr(auth_method))
 
-            # Receive request: version, cmd, rsv (0), atyp, dst addr, dst port
-            version, cmd, _, atyp = await reader.readexactly(4)
-            logger.debug('RECEIVE_READ', version=version, cmd=cmd, atyp=atyp)
-            if cmd != 1:
-                # We only handle connect
-                return
-            if atyp in (1, 4):
-                # ip4 or ip6
-                read_len = 4 * int(atyp)
-            elif atyp == 3:
-                read_len = int(await reader.readexactly(1))
-            else:
-                # bad atyp
-                return 
-            dest_addr = '.'.join(str(int(x)) for x in await reader.readexactly(read_len))
-            dest_port, = struct.unpack(b'!H', (await reader.readexactly(2)))
-            logger.debug('RECEIVE_READ', dest_addr=dest_addr, dest_port=dest_port)
+            # Receive request
+            request = await protocol.read_request()
+            logger.info('REQUEST_RECEIVED', request=str(request))
+
+            # We only handle connect requests for now
+            if request.command != Command.connect:
+                raise CommandNotSupported(request.command)
 
             # Send client response: version, rep, rsv (0), atyp, bnd addr, bnd port
             writer.write(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
             await writer.drain()
             
             # Let data flow freely between client and remote
-            remote_reader, remote_writer = await asyncio.open_connection(host=dest_addr, port=dest_port)
+            remote_reader, remote_writer = await asyncio.open_connection(
+                        host=request.dest_address, port=request.dest_port)
             await self.splice(reader, writer, remote_reader, remote_writer)
         except Exception as e:
             logger.exception('Exception!')
