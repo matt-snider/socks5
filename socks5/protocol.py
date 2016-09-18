@@ -17,8 +17,8 @@ class Socks5Protocol:
             raise BadSocksVersion(version)
         methods = await self.reader.readexactly(nmethods)
         print(methods)
-        if AuthMethod.none.value in methods:
-            self.writer.write(b'\x05' + AuthMethod.none.value)
+        if AuthMethod.none in methods:
+            self.writer.write(b'\x05' + AuthMethod.none)
             await self.writer.drain()
         else:
             self.writer.write(b'\x05\xff')
@@ -39,7 +39,7 @@ class NoSupportedAuthMethods(ProtocolException):
     pass
 
 
-class AuthMethod(Enum):
+class AuthMethod(bytes, Enum):
     none = b'\x00'
     gssapi = b'\x01'
     username_password = b'\x02'
