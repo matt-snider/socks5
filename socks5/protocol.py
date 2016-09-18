@@ -12,6 +12,7 @@ class Socks5Protocol:
 
         # TODO: make auth customizable, support other methods
         self.auth_providers = {}
+        self.request_received = False
 
     async def negotiate_auth(self):
         version, nmethods = await self.reader.readexactly(2)
@@ -38,12 +39,23 @@ class Socks5Protocol:
             raise ProtocolException('Bad address type: {}'.format(atyp))
         dest_addr = '.'.join(str(int(x)) for x in await self.reader.readexactly(read_len))
         dest_port, = struct.unpack(b'!H', (await self.reader.readexactly(2)))
+        self.request_received = True
         return Request(version=version, command=cmd, address_type=atyp,
                        dest_address=dest_addr, dest_port=dest_port)
 
+    async def _write_reply(self, reply_code):
+        self.writer.write(struct.pack('!BBxBxxxxxx', 5, reply_code, 0x01))
+        await self.writer.drain()
+
+    async def write_error(self, error):
+        await self._write_reply(error.error_code)
+
+    async def write_success(self):
+        await self._write_reply(0)
+
 
 class ProtocolException(Exception):
-    pass
+    error_code = b'\x01'
 
 
 class BadSocksVersion(ProtocolException):
@@ -55,7 +67,11 @@ class NoSupportedAuthMethods(ProtocolException):
 
 
 class CommandNotSupported(ProtocolException):
-    pass
+    error_code = b'\x07'
+
+
+class AddressTypeNotSupported(ProtocolException):
+    error_code = b'\x08'
 
 
 class AuthMethod(bytes, Enum):

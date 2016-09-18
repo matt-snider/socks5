@@ -50,13 +50,15 @@ class Socks5Server:
                 raise CommandNotSupported(request.command)
 
             # Send client response: version, rep, rsv (0), atyp, bnd addr, bnd port
-            writer.write(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
-            await writer.drain()
+            await protocol.write_success()
             
             # Let data flow freely between client and remote
             remote_reader, remote_writer = await asyncio.open_connection(
                         host=request.dest_address, port=request.dest_port)
             await self.splice(reader, writer, remote_reader, remote_writer)
+        except ProtocolException as e:
+            if protocol.request_received:
+                await protocol.write_error(e)
         except Exception as e:
             logger.exception('Exception!')
         finally:
