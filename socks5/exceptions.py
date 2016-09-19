@@ -2,6 +2,10 @@ class BadSocksVersion(Exception):
     pass
 
 
+class NoAcceptableAuthMethods(Exception):
+    pass
+
+
 class ProtocolException(Exception):
     error_code = b'\x01'
 

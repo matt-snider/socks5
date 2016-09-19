@@ -3,7 +3,7 @@ import socket
 
 from . import exceptions
 from .log import logger
-from .protocol import Command, Socks5Protocol
+from .protocol import AuthMethod, Command, Socks5Protocol
 
 loop = asyncio.get_event_loop()
 
@@ -12,6 +12,7 @@ class Socks5Server:
 
     def __init__(self):
         self.connections = {}
+        self.auth_methods = [AuthMethod.none]
 
     def start_server(self, host, port):
         logger.info('START_SERVER', host=host, port=port)
@@ -39,7 +40,7 @@ class Socks5Server:
         protocol = Socks5Protocol(reader, writer)
         try:
             # Do auth negotiation
-            auth_method = await protocol.negotiate_auth()
+            auth_method = await protocol.negotiate_auth(self.auth_methods)
             logger.info('AUTH_NEGOTIATED', method=repr(auth_method))
 
             # Receive request
@@ -62,6 +63,8 @@ class Socks5Server:
                 await protocol.write_error(e)
         except exceptions.BadSocksVersion as e:
             logger.warning('UNSUPPORTED_VERSION', version=e.args)
+        except exceptions.NoAcceptableAuthMethods as e:
+            logger.warning('NO_ACCEPTABLE_AUTH', client_methods=str(e.args[0]))
         except Exception as e:
             logger.exception('Exception!')
         finally:

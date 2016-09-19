@@ -16,18 +16,22 @@ class Socks5Protocol:
         self.auth_providers = {}
         self.request_received = False
 
-    async def negotiate_auth(self):
+    async def negotiate_auth(self, supported_methods):
         version, nmethods = await self.reader.readexactly(2)
         if version != 5:
             raise exceptions.BadSocksVersion(version)
-        methods = await self.reader.readexactly(nmethods)
-        if AuthMethod.none in methods:
-            self.writer.write(b'\x05' + AuthMethod.none)
-            await self.writer.drain()
-        else:
-            self.writer.write(b'\x05\xff')
-            await self.writer.drain()
-        return AuthMethod.none
+        client_methods = set(AuthMethod(bytes([x])) for x in
+                             await self.reader.readexactly(nmethods))
+
+        # Use the best matching auth method using the order
+        # of `supported_methods` as a preference
+        common_methods = [x for x in supported_methods if x in client_methods]
+        selected = common_methods[0] if common_methods else AuthMethod.not_acceptable
+        self.writer.write(b'\x05' + selected)
+        await self.writer.drain()
+        if selected == AuthMethod.not_acceptable:
+            raise exceptions.NoAcceptableAuthMethods(client_methods)
+        return selected
 
     async def read_request(self):
         version, cmd, _, atyp = await self.reader.readexactly(4)
