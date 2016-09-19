@@ -2,7 +2,7 @@ class BadSocksVersion(Exception):
     pass
 
 
-class NoAcceptableAuthMethods(Exception):
+class AuthFailed(Exception):
     pass
 
 

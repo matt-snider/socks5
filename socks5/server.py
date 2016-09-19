@@ -12,7 +12,7 @@ class Socks5Server:
 
     def __init__(self):
         self.connections = {}
-        self.auth_methods = [AuthMethod.none]
+        self.auth_methods = [AuthMethod.username_password, AuthMethod.none]
 
     def start_server(self, host, port):
         logger.info('START_SERVER', host=host, port=port)
@@ -63,8 +63,8 @@ class Socks5Server:
                 await protocol.write_error(e)
         except exceptions.BadSocksVersion as e:
             logger.warning('UNSUPPORTED_VERSION', version=e.args)
-        except exceptions.NoAcceptableAuthMethods as e:
-            logger.warning('NO_ACCEPTABLE_AUTH', client_methods=str(e.args[0]))
+        except exceptions.AuthFailed as e:
+            logger.warning('AUTH_FAILED', reason=e.args[0])
         except Exception as e:
             logger.exception('Exception!')
         finally:

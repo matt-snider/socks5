@@ -3,7 +3,7 @@ import struct
 from collections import namedtuple
 from enum import Enum
 
-from . import exceptions
+from . import exceptions, auth
 
 
 class Socks5Protocol:
@@ -15,6 +15,7 @@ class Socks5Protocol:
         # TODO: support custom auth providers
         self.auth_providers = {
             AuthMethod.none: None,
+            AuthMethod.username_password: auth.user_password,
         }
 
     async def negotiate_auth(self, supported_methods):
@@ -31,19 +32,20 @@ class Socks5Protocol:
         self.writer.write(b'\x05' + selected)
         await self.writer.drain()
         if selected == AuthMethod.not_acceptable:
-            raise exceptions.NoAcceptableAuthMethods(client_methods)
+            raise exceptions.AuthFailed('No acceptable methods: {}'
+                                        .format(client_methods))
 
         # Do authentication subnegotiation
-        provider = self.auth_providers[selected]
-        if provider:
-            await provider.negotiate()
+        subnegotiation = self.auth_providers[selected]
+        if subnegotiation:
+            await subnegotiation(self.reader, self.writer)
         return selected
 
     async def read_request(self):
         version, cmd, _, atyp = await self.reader.readexactly(4)
         cmd, atyp = Command(bytes([cmd])), AddressType(bytes([atyp]))
         if atyp == AddressType.domain_name:
-            read_len = int(await self.reader.readexactly(1))
+            read_len, = await self.reader.readexactly(1)
         elif atyp in AddressType.ipv4 + AddressType.ipv6:
             read_len = 4 * struct.unpack('B', atyp)[0]
         else:
