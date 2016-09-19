@@ -8,13 +8,14 @@ from . import exceptions
 
 class Socks5Protocol:
 
-    def __init__(self, reader, writer, auth_providers=None):
+    def __init__(self, reader, writer):
         self.reader = reader
         self.writer = writer
 
-        # TODO: make auth customizable, support other methods
-        self.auth_providers = {}
-        self.request_received = False
+        # TODO: support custom auth providers
+        self.auth_providers = {
+            AuthMethod.none: None,
+        }
 
     async def negotiate_auth(self, supported_methods):
         version, nmethods = await self.reader.readexactly(2)
@@ -31,6 +32,11 @@ class Socks5Protocol:
         await self.writer.drain()
         if selected == AuthMethod.not_acceptable:
             raise exceptions.NoAcceptableAuthMethods(client_methods)
+
+        # Do authentication subnegotiation
+        provider = self.auth_providers[selected]
+        if provider:
+            await provider.negotiate()
         return selected
 
     async def read_request(self):
