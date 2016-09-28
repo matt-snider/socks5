@@ -50,9 +50,7 @@ class Socks5Server:
             await conn.write_success()
             
             # Let data flow freely between client and remote
-            remote_reader, remote_writer = await asyncio.open_connection(
-                        host=request.dest_address, port=request.dest_port)
-            await self.splice(conn.reader, conn.writer, remote_reader, remote_writer)
+            await self.splice(conn, request)
         except exceptions.ProtocolException as e:
             if conn.request_received:
                 await conn.write_error(e)
@@ -65,8 +63,14 @@ class Socks5Server:
         finally:
             return conn.id
 
-    async def splice(self, client_reader, client_writer, remote_reader, remote_writer):
-        client_read = asyncio.ensure_future(client_reader.read(1024))
+    async def splice(self, client_conn, socks_request):
+        remote_reader, remote_writer = (
+                await asyncio.open_connection(
+                    host=socks_request.dest_address,
+                    port=socks_request.dest_port
+                )
+        )
+        client_read = asyncio.ensure_future(client_conn.reader.read(1024))
         remote_read = asyncio.ensure_future(remote_reader.read(1024))
         while True:
             logger.debug('LOOP')
@@ -80,7 +84,7 @@ class Socks5Server:
 
                 remote_writer.write(data)
                 await remote_writer.drain()
-                client_read = asyncio.ensure_future(client_reader.read(1024))
+                client_read = asyncio.ensure_future(client_conn.reader.read(1024))
                 logger.debug('CLIENT_READ', data=data)
             if remote_read in done:
                 data = remote_read.result()
@@ -88,8 +92,8 @@ class Socks5Server:
                     client_read.cancel()
                     return
 
-                client_writer.write(data)
-                await client_writer.drain()
+                client_conn.writer.write(data)
+                await client_conn.writer.drain()
                 remote_read = asyncio.ensure_future(remote_reader.read(1024))
                 logger.debug('REMOTE_READ', data=data)
         client_read.cancel()
