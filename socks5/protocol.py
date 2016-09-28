@@ -1,4 +1,5 @@
 import struct
+import uuid
 
 from collections import namedtuple
 from enum import Enum
@@ -6,11 +7,14 @@ from enum import Enum
 from . import exceptions, auth
 
 
-class Socks5Protocol:
+class Socks5Connection:
 
-    def __init__(self, reader, writer):
+    def __init__(self, reader, writer, **info):
+        self.id = str(uuid.uuid4())
         self.reader = reader
         self.writer = writer
+        self.info = info
+        self.info['id'] = self.id
 
         # TODO: support custom auth providers
         self.auth_providers = {
