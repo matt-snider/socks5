@@ -1,6 +1,7 @@
 import asyncio
 import click
 
+from socks5.exceptions import ImproperlyConfigured
 from .server import Socks5Server
 
 
@@ -16,8 +17,11 @@ from .server import Socks5Server
 def run_server(host, port, allow_no_auth, basic_auth_file):
     """Runs a SOCK5 server."""
     loop = asyncio.get_event_loop()
-    server = Socks5Server(allow_no_auth=allow_no_auth,
-                          basic_auth_user_file=basic_auth_file)
-    f = server.start_server(host, port)
-    loop.run_until_complete(f)
-    loop.run_forever()
+    try:
+        server = Socks5Server(allow_no_auth=allow_no_auth,
+                              basic_auth_user_file=basic_auth_file)
+        f = server.start_server(host, port)
+        loop.run_until_complete(f)
+        loop.run_forever()
+    except ImproperlyConfigured as e:
+        raise click.UsageError(str(e))
