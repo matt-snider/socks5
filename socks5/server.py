@@ -5,8 +5,6 @@ from . import exceptions, auth
 from .log import logger
 from .protocol import AuthMethod, Command, Socks5Connection
 
-loop = asyncio.get_event_loop()
-
 
 class Socks5Server:
 
@@ -136,7 +134,5 @@ class Socks5Server:
 
 
 if __name__ == '__main__':
-    server = Socks5Server()
-    f = server.start_server(host=None, port=1080)
-    loop.run_until_complete(f)
-    loop.run_forever()
+    from .cli import run_server
+    run_server()
