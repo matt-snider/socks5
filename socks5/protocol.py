@@ -4,7 +4,7 @@ import uuid
 from collections import namedtuple
 from enum import Enum
 
-from . import exceptions, auth
+from . import exceptions
 
 
 class Socks5Connection:
@@ -16,13 +16,7 @@ class Socks5Connection:
         self.info = info
         self.info['id'] = self.id
 
-        # TODO: support custom auth providers
-        self.auth_providers = {
-            AuthMethod.none: None,
-            AuthMethod.username_password: auth.user_password,
-        }
-
-    async def negotiate_auth(self, supported_methods):
+    async def negotiate_auth_method(self, supported_methods):
         version, nmethods = await self.reader.readexactly(2)
         if version != 5:
             raise exceptions.BadSocksVersion(version)
@@ -38,11 +32,6 @@ class Socks5Connection:
         if selected == AuthMethod.not_acceptable:
             raise exceptions.AuthFailed('No acceptable methods: {}'
                                         .format(client_methods))
-
-        # Do authentication subnegotiation
-        subnegotiation = self.auth_providers[selected]
-        if subnegotiation:
-            await subnegotiation(self.reader, self.writer)
         return selected
 
     async def read_request(self):

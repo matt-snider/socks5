@@ -1,6 +1,7 @@
 import asyncio
+from functools import partial
 
-from . import exceptions
+from . import exceptions, auth
 from .log import logger
 from .protocol import AuthMethod, Command, Socks5Connection
 
@@ -11,14 +12,16 @@ class Socks5Server:
 
     def __init__(self, basic_auth_user_file=None, allow_no_auth=False):
         self.basic_auth_credentials = {}
-        self.auth_methods = []
+        self.auth_methods = {}
         self.connections = {}
 
         if allow_no_auth:
-            self.auth_methods.append(AuthMethod.none)
+            self.auth_methods[AuthMethod.none] = None
         if basic_auth_user_file:
-            self.auth_methods.append(AuthMethod.username_password)
             self.basic_auth_credentials = self.load_basic_auth_file(basic_auth_user_file)
+            basic_auth = partial(auth.user_password,
+                                  credentials=self.basic_auth_credentials)
+            self.auth_methods[AuthMethod.username_password] = basic_auth
 
     def start_server(self, host, port):
         logger.info('START_SERVER', host=host, port=port)
@@ -41,8 +44,13 @@ class Socks5Server:
     async def handle_client(self, conn):
         try:
             # Do auth negotiation
-            auth_method = await conn.negotiate_auth(self.auth_methods)
-            logger.info('AUTH_NEGOTIATED', method=repr(auth_method))
+            auth_method = await conn.negotiate_auth_method(self.auth_methods)
+            logger.info('AUTH_METHOD_NEGOTIATED', method=repr(auth_method))
+
+            # Do auth subnegotiation
+            result = await self.auth_subnegotiation(auth_method, conn.reader,
+                                                    conn.writer)
+            logger.info('AUTH_COMPLETED', result=result)
 
             # Receive request
             request = await conn.read_request()
@@ -104,6 +112,11 @@ class Socks5Server:
                 logger.debug('REMOTE_READ', data=data)
         client_read.cancel()
         remote_read.cancel()
+
+    async def auth_subnegotiation(self, auth_method, reader, writer):
+        subnegotiation = self.auth_methods[auth_method]
+        if subnegotiation:
+            return await subnegotiation(reader, writer)
 
     def load_basic_auth_file(self, path):
         """Loads a dict mapping usernames to passwords from the given file.
