@@ -23,6 +23,10 @@ class Socks5Server:
                                   credentials=self.basic_auth_credentials)
             self.auth_methods[AuthMethod.username_password] = basic_auth
 
+        # When configuration is done, we *must* have at least one auth method
+        if not self.auth_methods:
+            raise exceptions.ImproperlyConfigured('No auth methods configured')
+
     def start_server(self, host, port):
         logger.info('START_SERVER', host=host, port=port)
         return asyncio.start_server(self.accept_client, host=host, port=port)

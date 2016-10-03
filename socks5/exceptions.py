@@ -6,6 +6,10 @@ class AuthFailed(Exception):
     pass
 
 
+class ImproperlyConfigured(Exception):
+    pass
+
+
 class ProtocolException(Exception):
     error_code = b'\x01'
 
