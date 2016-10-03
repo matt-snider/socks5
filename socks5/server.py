@@ -9,9 +9,16 @@ loop = asyncio.get_event_loop()
 
 class Socks5Server:
 
-    def __init__(self):
+    def __init__(self, basic_auth_user_file=None, allow_no_auth=False):
+        self.basic_auth_credentials = {}
+        self.auth_methods = []
         self.connections = {}
-        self.auth_methods = [AuthMethod.username_password, AuthMethod.none]
+
+        if allow_no_auth:
+            self.auth_methods.append(AuthMethod.none)
+        if basic_auth_user_file:
+            self.auth_methods.append(AuthMethod.username_password)
+            self.basic_auth_credentials = self.load_basic_auth_file(basic_auth_user_file)
 
     def start_server(self, host, port):
         logger.info('START_SERVER', host=host, port=port)
@@ -98,10 +105,21 @@ class Socks5Server:
         client_read.cancel()
         remote_read.cancel()
 
+    def load_basic_auth_file(self, path):
+        """Loads a dict mapping usernames to passwords from the given file.
+
+        Each line has the format <username>:<password>[:<comment>]
+        """
+        credentials = {}
+        with open(path) as f:
+            for line in f.readlines():
+                username, password, _ = line.split(':')
+                credentials[username] = password
+        return credentials
+
 
 if __name__ == '__main__':
     server = Socks5Server()
     f = server.start_server(host=None, port=1080)
     loop.run_until_complete(f)
     loop.run_forever()
-
