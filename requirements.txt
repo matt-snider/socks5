@@ -1,2 +1,2 @@
+click==6.6
 kaviar==1.0
-
