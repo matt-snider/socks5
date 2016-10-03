@@ -1,5 +1,4 @@
 import asyncio
-import socket
 
 from . import exceptions
 from .log import logger
@@ -44,7 +43,7 @@ class Socks5Server:
 
             # We only handle connect requests for now
             if request.command != Command.connect:
-                raise CommandNotSupported(request.command)
+                raise exceptions.CommandNotSupported(request.command)
 
             # Send client response: version, rep, rsv (0), atyp, bnd addr, bnd port
             await conn.write_success()
