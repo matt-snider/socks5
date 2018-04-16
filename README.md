@@ -1,11 +1,6 @@
 # socks5
 A socks5 server in Python using asyncio.
 
-# Installation
-I haven't gotten around to doing any packaging yet :-(
-
-Requires: click, kaviar
-
 # Usage
 ```
 $ python -m socks5.server --help
@@ -28,4 +23,15 @@ using the --basic-auth-file option. This should point to a file storing
 credentials in the format:
 ```txt
 <username>:<password>[:<comment>]
+```
+
+# Usage with docker
+```
+* create you credentials in passwords.txt file
+* docker-compose up -d
+```
+
+# Usage socks5 for messenger telegram.org
+```
+create link like: tg://socks?server=ip_or_dns_name&port=port&user=username&pass=passwords.txt
 ```
