@@ -1,0 +1,7 @@
+socks5:
+  image: asteny/socks5
+  restart: always
+  volumes:
+    - "./passwords.txt:/passwords.txt:ro"
+  ports:
+    - "0.0.0.0:1488:1488"
