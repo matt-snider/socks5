@@ -35,7 +35,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'socks5server=socks5.cli:run_server',
+            'socks5.server=socks5.cli:run_server',
         ],
     },
     project_urls={

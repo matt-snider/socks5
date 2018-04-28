@@ -1,15 +1,26 @@
 # socks5
+
 A socks5 server in Python using asyncio.
 
+Works with python >= 3.6
+
 # Installation
-I haven't gotten around to doing any packaging yet :-(
+
+This package is available on [pypi](https://pypi.org/project/socks5server/)
+
+Install it with pip:
+
+```sh
+$ pip install socks5server
+```
 
 Requires: click, kaviar
 
 # Usage
+
 ```
-$ python -m socks5.server --help
-Usage: server.py [OPTIONS]
+$ socks5.server --help
+Usage: socks5.server [OPTIONS]
 
   Runs a SOCK5 server.
 
@@ -23,9 +34,11 @@ Options:
 ```
 
 # Authentication
+
 The only method currently supported is basic auth, which can be configured
 using the --basic-auth-file option. This should point to a file storing
 credentials in the format:
+
 ```txt
 <username>:<password>[:<comment>]
 ```
