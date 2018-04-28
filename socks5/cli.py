@@ -1,7 +1,7 @@
 import asyncio
 import click
 
-from socks5.exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfigured
 from .server import Socks5Server
 
 
