@@ -67,28 +67,12 @@ setup(
         'test': ['coverage'],
     },
 
-    # To provide executable scripts, use entry points in preference to the
-    # "scripts" keyword. Entry points provide cross-platform support and allow
-    # `pip` to create the appropriate form of executable for the target
-    # platform.
-    #
-    # For example, the following would provide a command called `sample` which
-    # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         'console_scripts': [
             'socks5server=socks5.cli:run_server',
         ],
     },
 
-    # List additional URLs that are relevant to your project as a dict.
-    #
-    # This field corresponds to the "Project-URL" metadata fields:
-    # https://packaging.python.org/specifications/core-metadata/#project-url-multiple-use
-    #
-    # Examples listed include a pattern for specifying where the package tracks
-    # issues, where the source is hosted, where to say thanks to the package
-    # maintainers, and where to support the project financially. The key is
-    # what's used to render the link text on PyPI.
     project_urls={
         'Source': 'https://github.com/matt-snider/socks5',
     },
